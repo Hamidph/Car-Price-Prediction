@@ -1,0 +1,403 @@
+---
+title: "CS5801 Coursework Template Proforma"
+author: "2345680"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: default
+  html_notebook: default
+version: 1
+---
+
+# 0. Instructions
+
+```{r}
+# Add code here to load all the required libraries with `library()`.  
+library(dplyr)
+library(ggplot2)
+library(knitr)
+# Do not include any `install.package()` for any required packages in this rmd file.
+```
+
+# 1. Organise and clean the data
+
+## 1.1 Subset the data into the specific dataset allocated
+
+```{r}
+# Only change the value for SID 
+# Assign your student id into the variable SID, for example:
+SID <- 2345680                  # This is an example, replace 2101234 with your actual ID
+SIDoffset <- (SID %% 50) + 1    # Your SID mod 50 + 1
+
+load("car-analysis-data.Rda")
+# Now subset the car data set
+# Pick every 50th observation starting from your offset
+# Put into your data frame named mydf (you can rename it)
+dataset <- cars.analysis[seq(from=SIDoffset,to=nrow(cars.analysis),by=50),]
+```
+
+## 1.2 Data quality analysis plan
+
+First we are going to understand our dataset getting familiar with it. As it shows there is 410 observations of cars and some specific quality of those and finally their price. Totally we have 16 columns and 410 rows(observations). This could be like these steps:
+
+1.  **Completeness Check**:
+
+-   Assess missing values, such as **`brand`**, **`year`**, **`mileage`**, **`engine_size`**, **`automatic_transmission`**, **`fuel`**, **`drivetrain`**, **`min_mpg`**, **`max_mpg`**, **`damaged`**, **`first_owner`**, **`navigation_system`**, **`bluetooth`**, **`third_row_seating`**, **`heated_seats`**, and **`price`**.
+
+-   Use functions like **`sum(is.na(data$column))`** in R to quantify missing values.
+
+2.  **Validity and Consistency**:
+
+    -   Ensure data types are correct for each variable (e.g., numeric for **`year`**, **`mileage`**, **`engine_size`**; categorical for **`brand`**, **`fuel`**).
+
+    -   Check for valid ranges in variables like **`year`**, **`mileage`**, **`min_mpg`**, and **`max_mpg`**.
+
+    -   Standardize categorical variables to eliminate inconsistencies (e.g., different cases in **`brand`** & **`fuel`** ).
+
+3.  **Accuracy**:
+
+    -   For variables like **`price`**, validate accuracy against external data we may have.
+
+4.  **Uniqueness**:
+
+    -   Check for duplicate stances to ensure each row shows unique data.
+
+5.  **Outlier Detection**:
+
+    -   Identify outlines in continuous variables (**`mileage`**, **`engine_size`**, **`min_mpg`**, **`max_mpg`**, **`price`**) using statistical methods or visualizations like boxplots.
+
+6.  **Correlation and Redundancy**:
+
+    -   Analyze correlations, especially between similar variables (e.g., **`min_mpg`** and **`max_mpg`**), to identify potential redundancies.
+
+```{r}
+# Some basic commands for getting general information
+summary(dataset)
+str(dataset)
+# Number of columns and rows
+nrow(dataset)
+ncol(dataset)
+```
+
+## 1.3 Data quality analysis findings
+
+## 1.4 Data cleaning
+
+1.  **Missing Values**: **`min_mpg`** and **`max_mpg`** columns have missing values. Here, we are gonna use median imputation, chosen due to its robustness against outliers compared to the mean.
+
+2.  **Inconsistent Categorization**: Variables like **`brand`** and **`fuel`** are inconsistent (e.g., 'Toyota' vs. 'toyota'). We're gonna address this by converting all text in these categorical variables to lowercase, ensuring consistency across the dataset.
+
+3.  **Outliers**: We have outliers in columns such as **`mileage`** and **`price`**. We're going to examine to understand if they are data entry errors or valid extreme values. In cases of apparent errors, values will corrected or removed. For valid extremes, we will keep them.
+
+4.  **Data Type Mismatches**: By converting them to factors we will have the advantage of explicitly defining the possible values of a variable (Brands) along with their levels(Names)
+
+5.  **Duplicate Records**: In this part we are going to ensure each record in the dataset uniquely represented a car.
+
+6.  **High Correlation**: Some variables, particularly **`min_mpg`** and **`max_mpg`**, were highly correlated.
+
+    ```{r}
+
+    #Missing Values
+    #Imputing missing values in 'min_mpg' and 'max_mpg' with the median
+    dataset$min_mpg[is.na(dataset$min_mpg)] <- median(dataset$min_mpg, na.rm = TRUE)
+    dataset$max_mpg[is.na(dataset$max_mpg)] <- median(dataset$max_mpg, na.rm = TRUE)
+
+    #Inconsistancy 
+    #letters in'brand' and 'fuel' gonna be all in lowercase
+    dataset$brand <- tolower(dataset$brand)
+    dataset$fuel <- tolower(dataset$fuel)
+
+    #This will remove duplicated rows
+    dataset <- dataset[!duplicated(dataset), ]
+    #There is no duplication in my data
+
+    #Converting some variables to  categorical variables by using factor
+    dataset$brand <- as.factor(dataset$brand)
+    dataset$fuel <- as.factor(dataset$fuel)
+    dataset$drivetrain <- as.factor(dataset$drivetrain)
+    dataset$damaged <- as.factor(dataset$damaged)
+    dataset$first_owner <- as.factor(dataset$first_owner)
+    dataset$navigation_system <- as.factor(dataset$navigation_system)
+    dataset$bluetooth <- as.factor(dataset$bluetooth)
+    dataset$third_row_seating <- as.factor(dataset$third_row_seating)
+    dataset$heated_seats <- as.factor(dataset$heated_seats)
+
+    #Outliers
+
+    ```
+
+# 2. Exploratory Data Analysis (EDA)
+
+## 2.1 EDA plan
+
+Here we are going to explore our data. In the previous section we have recognize data problems and doing data quality checks. In this section, we are going to find patterns and visualize our data. We are going to explore each of the columns.
+
+1.  **Data Exploration**: - We are going to Load the dataset and use functions like `summary()`, `str()`, and `head()` in R to get an overview of the data structure, types (numeric, categorical), potential missing values and outliers( We have addressed this part in the previous section).
+
+2.  **Univariate Analysis**:
+
+    -   For numeric variables (e.g., `year`, `mileage`, `engine_size`, `price`), we use functions like mean, median, standard deviation, and quantiles. Visualize these using histograms and box plots to understand distributions and identify possible outliers.
+    -   For categorical variables (e.g., `brand`, `fuel`, `drivetrain`), calculate frequency counts and proportions. Use bar charts to visualize the frequency distribution of these variables.
+
+3.  **Multivariate Analysis**:
+
+    -   We try to find out relationships between independent variables and the dependent variable (`price`). Correlation analysis for numeric variables .
+    -   Use scatter plots to visualize relationships between `max_mpg` and continuous predictors, and box plots to compare `max_mpg` across different categories of categorical predictors.
+
+4.  **Visual Exploration**:
+
+    -   Employ `ggplot2` for advanced visualizations. This includes using scatter plots with trend lines for numerical variables, and faceted bar charts for categorical variables, focusing on how they relate to `max_mpg`.
+    -   Consider pair plots or correlation heatmaps to visualize relationships among multiple variables.
+
+5.  **Exploring Missing Values and Outliers**:
+
+    -   Analyze patterns of missing data and outliers, particularly in relation to `max_mpg`, to understand if they are random or systematic.
+
+## 2.2 EDA execution
+
+# Car Brand
+
+We can see other values in the **Car Brands Frequencies** table and I have visualize them in **Frequency of Car Brands** barplot. Both are in increasing order.
+
+```{r}
+# Brand frequency table
+brand_freq <- table(dataset$brand)
+# Reorder the levels based on frequency
+dataset$brand <- factor(dataset$brand, levels = names(sort(brand_freq, decreasing = FALSE)))
+# Creating a frequency table
+brand_freq <- table(dataset$brand)
+
+# Displaying the table using kable
+kable(
+  as.data.frame(brand_freq),
+  caption = "Car Brands Frequencies",
+  col.names = c("Car Brand", "Frequency"),
+  align = "c"
+)
+# Plot the frequencies of car brands
+ggplot(dataset, aes(x = brand)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Frequency of Car Brands", x = "Car Brands", y = "Frequency") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+# Year of Production
+
+We plot the **Distribution of Year of Production** histogram. By analyzing the histogram we can see that:
+
+1.  **Distribution of Production Year**: It is obvious that the histogram is has been skewed to the right and not symmetric distributed which indicates that the concentration of production is in the recent years.
+2.  **Central Tendency**: We will calculate mean and median.
+
+```{r}
+#dataset$year
+dataset[dataset$year <2000,]
+#rownames(dataset) <- NULL
+#filter(dataset, year<2000)
+ggplot(dataset, aes(x = year)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Year of Production", x = "Year of Production", y = "Frequency") +
+  theme_minimal()
+```
+
+# Mileage
+
+There would be potential problem with a car from 2012 which has 0 mileage, But we need more info for deleting them.
+
+```{r}
+dataset[dataset$mileage == 0,]
+```
+
+# Engine Size
+
+We have examine the values of engine size and there is some unacceptable values for that such 0 for a fuel engine car.
+
+```{r}
+dataset$engine_size
+dataset[dataset$engine_size == 0,]
+View(dataset)
+```
+
+#Automatic Transmission
+
+Here we are going to convert values to factor and treat them like categorical values.
+
+```{r}
+dataset$automatic_transmission <- as.factor(dataset$automatic_transmission)
+```
+
+#Fuel
+
+There is a problem with fuel name. We have 366 cars with 'Petrol' and two cars are 'Pertol'. Obviously, there is a mistake here and we have to correct it. It's important to address such inconsistencies to ensure the accuracy and reliability of our data. we have 5 levels for fuel factor.
+
+```{r}
+dataset$fuel <- as.factor(dataset$fuel)
+dataset$fuel[dataset$fuel == "Pertol"] <- "Petrol"
+#Delete the 'Pertol' level
+dataset$fuel <- droplevels(dataset$fuel, exclude = "Pertol")
+table(dataset$fuel)
+fuel_counts <- table(dataset$fuel)
+
+# Plotting
+ggplot(dataset, aes(x = fuel)) +
+  geom_bar() +
+  xlab("Fuel Type") +
+  ylab("Number of Cars") +
+  ggtitle("Number of Cars by Fuel Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#Drivertion
+
+We have three kind of drivetrain and also an unknown category. Here, I want to use imputation method. As this column contain categorical data we can use mode imputation. This code calculates the mode of the variable using the table() function, which creates a frequency table of unique values in the variable. The sort() function is then used to order the values by frequency in decreasing order, and names() extracts the name of the most frequent value (mode).
+
+```{r}
+table(dataset$drivetrain)
+mode_value <- names(sort(table(dataset$drivetrain), decreasing = TRUE))[1]
+# Impute missing values with the mode
+dataset$drivetrain[is.na(dataset$drivetrain)] <- mode_value
+
+```
+
+#Min_mpg & Max_mpg
+
+the minimum miles per gallon (MPG) of a car would depend on the specific make and model of the car, as well as the year of manufacture. In this context 0 value is not acceptable. There are two cars with 0 for min_mpg whcih none of them are also electric so they have a problem. Also no negative value is acceptable and we have to check wheater max_mpg is higher than min_mpg or not. We also have Audi 122 with negative max-mpg
+
+```{r}
+#plot(dataset$min_mpg)
+#cars_with_zero_min_mpg <- subset(dataset, min_mpg == 0, select = c("brand", "max_mpg", "min_mpg","fuel"))
+
+# Assuming 'your_data' is your dataset
+cars_with_invalid_mpg <- subset(dataset, max_mpg <= min_mpg)
+
+# Print or view the subset of cars with invalid MPG values
+cars_with_invalid_mpg
+#delete problematic rows
+dataset <- dataset[dataset$min_mpg != 0, ]
+dataset <- dataset[!is.na(dataset$brand), ]
+dataset <- dataset[!(dataset$max_mpg <= dataset$min_mpg), ]
+```
+
+## 2.3 EDA summary of results
+
+#Car Brand
+
+As we can see there are 25 car brands. Based on the data, Mitsubishi is the most frequent brand with 25 instances and Porsche is the least popular brand in our dataset. We can other values in the '**Frequency of Car Brands**' barplot. There is no problems such duplication of a car brand here.
+
+# Year of Production
+
+We calculated the common measures like mean (2017.473) and median (2019). In the **Year of Production** table we can see that 65 out of 410 (total) cars are made in 2019.
+
+#Engine Size
+
+As we can see there is number of missing values and also some cars have 0 engine size which is okay for a electric car. 191. FIAT 261. Hyundai Also we have 18 missing values.
+
+#Automatic Transmission
+
+1 is for automatic and 0 is for manual transmission. This will be a factor with two levels. Manual = 28 Automatic = 382
+
+#Fuel
+
+we have 5 levels for fuel factor. As we can see in plot more than 350 of cars are using fuels.
+
+#Drivertion
+
+No.: Four-wheel = 211 Drive Front-wheel Drive = 126\
+Rear-wheel Drive = 60\
+Unknown = 5
+
+## 2.4 Additional insights and issues
+
+1.  **Skewness in Numeric Variables**: `mileage`, `engine_size`, and `price` revealed skewness in their distributions. This skewness could impact the performance of some statistical models.
+
+2.  **Variation in Fuel Type**: The EDA on the `fuel` column highlighted a significant variation in the popularity of different fuel types and it maybe shows the market trends.
+
+3.  **Brand Influence on Price**: The relationship between `brand` and `price` suggested certain brands might charge people more than normal.
+
+4.  **High Correlation Between Features**: `min_mpg` and `max_mpg` have high correlation and this might be problematic.
+
+5.  **Outliers Impact**: Identified outliers, particularly in the `price` and `mileage` columns, raise questions about their potential impact.
+
+# 3. Modelling
+
+## 3.1 Explain your analysis plan
+
+To model the price I will proceed as follows:
+
+1.  **Select Feature** : Features influencing car prices (e.g., **`year`**, **`mileage`**, **`engine_size`**, **`brand`**, **`fuel`**) identified during EDA.
+
+2.  **Data Cleaning** : Address missing values in critical variables like **`mileage`** and **`engine_size`** using median imputation, as this method is robust to outliers.
+
+3.  **Normalization and Encoding**: Normalize skewed variables like **`mileage`** and **`price`** to enhance model accuracy. Convert categorical variables such as **`brand`** and **`fuel`** into factors.
+
+4.  **Model Selection (Linear)**: Start with linear regression for its simplicity and interpretability.
+
+5.  **Validation**: Use cross-validation to evaluate model performance.
+
+## 3.2 Build a model for car price
+
+```{r}
+model <- lm(price ~ ., data = dataset)
+
+# Summary of the model
+summary(model)
+
+
+```
+
+## 3.3 Critique model using relevant diagnostics
+
+1.  **Model Interpretation**:
+
+    -   The model identifies several significant predictors of used car prices. For instance, the brand of the car (e.g., Suzuki, Alfa, BMW) significantly impacts its price and they have different coefficients.
+
+    -   The **`year`** variable has a positive coefficient, suggesting newer cars tend to be more expensive, which make sense.
+
+    -   **`Mileage`** negatively impacts the price, indicating higher mileage reduces the price which make sense too.
+
+2.  **Goodness of Fit**:
+
+    -   The **`Multiple R-squared`** value of 0.81 suggests that the model explains 81% of the variability in the car prices, which actually is a good value indicates a good fit.
+
+    -   The **`Adjusted R-squared`** of 0.785, although slightly lower than the R-squared, still indicates a strong fit while accounting for the number of predictors.
+
+    -   The low p-value of the F-statistic (\< 2.2e-16) confirms that the model is statistically significant.
+
+3.  **Graphical Diagnostics**:
+
+    -   We may want to plot the residuals against fitted values in order to assess homoscedasticity.
+
+4.  **Residuals**:
+
+    -   The **`Residuals`** section shows the distribution of the residuals (differences between observed and predicted values).
+
+5.  **Issues and Considerations**:
+
+    -   High p-values in (e.g., **`automatic_transmission`**, **`fuel types`**, **`drivetrain`**) suggests they may not significantly contribute to the model.
+
+    -   Overall, the model appears to have a strong predictive power for predicting car prices.
+
+## 3.4 Suggest and implement improvements to your model
+
+Given the weaknesses identified in the linear regression model in 3.3, such as potential overfitting and multicollinearity, an alternative approach would be to use a regularization method like Ridge or Lasso regression (<https://www.datacareer.de/blog/ridge-and-lasso-in-r/>).
+
+1.  **Ridge Regression**: It adds a penalty equal to the square of the magnitude of coefficients (L2 penalty).
+
+2.  **Lasso Regression**: It adds a penalty equal to the absolute value of the magnitude of coefficients (L1 penalty).
+
+Considering the findings in 3.2 and the model weaknesses outlined in 3.3, I propose using Lasso Regression. The reason for this choice is the model's ability to perform feature selection, which can address the overfitting issue by reducing the number of variables and mitigating the effect of multicollinearity. It is worth to mention that this topic has not been covered in lectures.
+
+# 4. Modelling another dependent variable
+
+## 4.1 Model the likelihood of a car being sold by the first owner (using the first_owner variable provided).
+
+Modelling whether a car is being sold by the first owner or not, using the binary target attribute **`first_owner.`**Given the binary nature of the target, logistic regression is a suitable starting point.
+
+### **Execution:**
+
+We can use **`glm()`** for logistic regression, **`randomForest()`** for a Random Forest model, and various **`caret`** functions for model evaluation.
+
+### 
+
+# References
+
+*Add any references here including references to use of GenAI. NB You can either do this manually or automatically with a `.bib` file (which then must be submitted along with your `.Rmd` file). See the RMarkdown [documentation](https://bookdown.org/yihui/rmarkdown-cookbook/bibliography.html) for guidance.*
